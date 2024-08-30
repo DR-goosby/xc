@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Blog</title>
+    <!-- Add your CSS files here -->
+</head>
+<body>
+    <!-- Your HTML structure for the blog -->
+    
+    <form id="postForm">
+        <input type="text" id="postText" placeholder="What's on your mind?" required>
+        <input type="file" id="postImage">
+        <button type="submit">Post</button>
+    </form>
+
+    <div id="postsContainer">
+        <!-- Posts will be rendered here -->
+    </div>
+
+    <script>
+        // JavaScript code goes here
+        const serverUrl = 'https://192.168.178.116:5000';
+
+        async function loadPosts() {
+            try {
+                const response = await fetch(`${serverUrl}/load-posts`);
+                if (!response.ok) {
+                    throw new Error('Failed to load posts');
+                }
+                const posts = await response.json();
+                renderPosts(posts);
+            } catch (error) {
+                console.error('Error loading posts:', error);
+            }
+        }
+
+        async function savePosts(posts) {
+            try {
+                const response = await fetch(`${serverUrl}/save-posts`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ posts }),
+                });
+                if (!response.ok) {
+                    throw new Error('Failed to save posts');
+                }
+                console.log('Posts saved successfully!');
+            } catch (error) {
+                console.error('Error saving posts:', error);
+            }
+        }
+
+        async function uploadFile(file) {
+            try {
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const response = await fetch(`${serverUrl}/upload`, {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to upload file');
+                }
+
+                const data = await response.json();
+                console.log('File uploaded successfully:', data);
+                return data.filename;
+            } catch (error) {
+                console.error('Error uploading file:', error);
+            }
+        }
+
+        async function submitPost(event) {
+            event.preventDefault();
+            
+            const postText = document.getElementById('postText').value;
+            const postImage = document.getElementById('postImage').files[0];
+
+            let imageUrl = null;
+            if (postImage) {
+                imageUrl = await uploadFile(postImage);
+            }
+
+            const posts = await loadPosts();
+            const newPost = {
+                id: Date.now(),
+                text: postText,
+                image: imageUrl,
+                comments: [],
+                reactions: {}
+            };
+
+            posts.push(newPost);
+            await savePosts(posts);
+        }
+
+        function renderPosts(posts) {
+            // Render posts in the #postsContainer
+            const container = document.getElementById('postsContainer');
+            container.innerHTML = ''; // Clear the container
+
+            posts.forEach(post => {
+                const postElement = document.createElement('div');
+                postElement.className = 'post';
+                postElement.innerHTML = `
+                    <p>${post.text}</p>
+                    ${post.image ? `<img src="${serverUrl}/uploads/${post.image}" alt="Post Image">` : ''}
+                `;
+                container.appendChild(postElement);
+            });
+        }
+
+        document.getElementById('postForm').onsubmit = submitPost;
+        document.addEventListener('DOMContentLoaded', loadPosts);
+    </script>
+</body>
+</html>
